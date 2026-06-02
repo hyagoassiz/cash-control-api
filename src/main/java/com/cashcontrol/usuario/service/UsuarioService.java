@@ -3,6 +3,7 @@ package com.cashcontrol.usuario.service;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.cashcontrol.exception.EmailAlreadyExistsException;
 import com.cashcontrol.usuario.dto.UsuarioRequestDTO;
 import com.cashcontrol.usuario.dto.UsuarioResponseDTO;
 import com.cashcontrol.usuario.entity.Usuario;
@@ -21,8 +22,8 @@ public class UsuarioService {
     }
 
     public UsuarioResponseDTO criarUsuario(UsuarioRequestDTO usuarioRequestDTO) {
-        if(usuarioRepository.findByEmail(usuarioRequestDTO.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Email já cadastrado");
+        if (usuarioRepository.findByEmail(usuarioRequestDTO.getEmail()).isPresent()) {
+            throw new EmailAlreadyExistsException("Email já cadastrado");
         }
 
         Usuario usuario = Usuario.builder()
