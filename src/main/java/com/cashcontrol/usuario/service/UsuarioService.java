@@ -27,7 +27,7 @@ public class UsuarioService {
         }
 
         Usuario usuario = Usuario.builder()
-                .nome(usuarioRequestDTO.getNome())
+                .nome(usuarioRequestDTO.getNome().trim().replaceAll("\\s+", " "))
                 .email(usuarioRequestDTO.getEmail())
                 .senha(passwordEncoder.encode(usuarioRequestDTO.getSenha()))
                 .build();
