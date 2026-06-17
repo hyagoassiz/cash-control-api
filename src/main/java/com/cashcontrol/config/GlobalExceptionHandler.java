@@ -1,8 +1,7 @@
 package com.cashcontrol.config;
 
-import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
@@ -12,58 +11,84 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import com.cashcontrol.config.dto.ApiErrorResponse;
+import com.cashcontrol.config.dto.ApiFieldError;
 import com.cashcontrol.exception.EmailAlreadyExistsException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
-    public ResponseEntity<Map<String, Object>> handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
-        Map<String, Object> body = Map.of(
-                "timestamp", Instant.now().toString(),
-                "status", HttpStatus.CONFLICT.value(),
-                "error", "Conflict",
-                "field", "email",
-                "code", "EMAIL_ALREADY_EXISTS",
-                "message", ex.getMessage()
+    public ResponseEntity<ApiErrorResponse> handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
+        List<ApiFieldError> errors = new ArrayList<>();
+        errors.add(new ApiFieldError("email", "EMAIL_ALREADY_EXISTS", ex.getMessage()));
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                "EMAIL_ALREADY_EXISTS",
+                ex.getMessage(),
+                errors
         );
 
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        List<Map<String, String>> errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(this::fieldErrorToMap)
+    public ResponseEntity<ApiErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        List<ApiFieldError> errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(this::fieldErrorToApiFieldError)
                 .collect(Collectors.toList());
 
-        Map<String, Object> body = Map.of(
-                "timestamp", Instant.now().toString(),
-                "status", HttpStatus.BAD_REQUEST.value(),
-                "error", "Bad Request",
-                "message", "Dados de usuário inválidos",
-                "errors", errors
+        ApiErrorResponse response = new ApiErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "VALIDATION_ERROR",
+                "Dados de usuário inválidos",
+                errors
         );
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
-    }
-
-    private Map<String, String> fieldErrorToMap(FieldError fieldError) {
-        return Map.of(
-                "field", fieldError.getField(),
-                "message", fieldError.getDefaultMessage()
-        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
-        Map<String, Object> body = Map.of(
-                "timestamp", Instant.now().toString(),
-                "status", HttpStatus.BAD_REQUEST.value(),
-                "error", "Bad Request",
-                "message", ex.getMessage()
+    public ResponseEntity<ApiErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        List<ApiFieldError> errors = new ArrayList<>();
+        errors.add(new ApiFieldError("general", "ILLEGAL_ARGUMENT", ex.getMessage()));
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "ILLEGAL_ARGUMENT",
+                ex.getMessage(),
+                errors
         );
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    private ApiFieldError fieldErrorToApiFieldError(FieldError fieldError) {
+        String code = extractErrorCode(fieldError);
+        return new ApiFieldError(
+                fieldError.getField(),
+                code,
+                fieldError.getDefaultMessage()
+        );
+    }
+
+    private String extractErrorCode(FieldError fieldError) {
+        String annotation = fieldError.getCode();
+        
+        if (annotation == null || annotation.isEmpty()) {
+            return "VALIDATION_ERROR";
+        }
+
+        return switch (annotation) {
+            case "NotBlank" -> "FIELD_REQUIRED";
+            case "Email" -> "EMAIL_INVALID";
+            case "Pattern" -> "PATTERN_INVALID";
+            case "Size" -> "SIZE_INVALID";
+            case "NotNull" -> "FIELD_REQUIRED";
+            case "Min" -> "MIN_VALUE_INVALID";
+            case "Max" -> "MAX_VALUE_INVALID";
+            default -> annotation;
+        };
     }
 }
