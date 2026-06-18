@@ -26,7 +26,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/usuarios", "/usuarios/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/usuarios", "/usuarios/login", "/usuarios/refresh").permitAll()
                     .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults());
@@ -41,6 +41,7 @@ public class SecurityConfig {
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(List.of("Set-Cookie"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
